@@ -1,0 +1,48 @@
+
+name: Compilar DENTAL JG
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Preparar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Extraer ZIP y compilar
+        shell: bash
+        run: |
+          set -eu
+          ZIP_FILE="$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)"
+          test -n "$ZIP_FILE" || { echo "ERROR: No se encontró el ZIP en la raíz del repositorio"; exit 1; }
+          mkdir -p source
+          unzip -q "$ZIP_FILE" -d source
+          SETTINGS="$(find source -type f \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit)"
+          test -n "$SETTINGS" || { echo "ERROR: El ZIP no contiene settings.gradle ni settings.gradle.kts"; exit 1; }
+          cd "$(dirname "$SETTINGS")"
+          gradle --no-daemon assembleDebug
+
+      - name: Guardar APK generadas
+        uses: actions/upload-artifact@v4
+        with:
+          name: DENTAL-JG-APK
+          path: source/**/*.apk
+          if-no-files-found: error
+          
